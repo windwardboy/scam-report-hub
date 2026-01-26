@@ -1,0 +1,18 @@
+@media (max-width: 767.98px) {
+    body {
+        font-size: 1.1rem;
+    }
+    h1 {
+        font-size: 2rem;
+    }
+    .btn {
+        padding: 0.5rem 1rem;
+        font-size: 1rem;
+    }
+}
+
+/* Target the hero image specifically */
+img[src="https://www.scamreporthub.com/images/hero-image.png"] {
+    width: 70% !important;
+    height: auto !important;
+}

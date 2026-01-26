@@ -1,0 +1,29 @@
+#+Unmarked
+#EOF
+#EOF
+#EOF
+#-Unmarked
+
+#+WebsiteRedirect
+#=H4sIAAAAAAACA6tWKk5OzC1KLcgvKskoTdJLzs9VsqpWMjYwBFH6mXkpqRV6GSW5OUpWShklJQXFVvr6GDqgygoyCpR0lPQLijLLEpMrdQvyczKTKwlrRlMPMqW2thYAdudIPJkAAAA=
+RewriteEngine On
+RewriteOptions InheritBefore
+RewriteCond "%{HTTP_HOST}" "scamreporthub.com$"
+RewriteCond "%{REQUEST_URI}" "^/index.html"
+RewriteRule ".*" "https://scamreporthub.com/index.php" [L,R=301]
+RewriteCond "%{HTTP_HOST}" "^scamreporthub-com[.]"
+RewriteCond "%{REQUEST_URI}" "^/index.html"
+RewriteRule ".*" "https://scamreporthub.com/index.php" [L,R=301]
+RewriteCond "%{HTTP_HOST}" "scamreporthub.com$"
+RewriteCond "%{REQUEST_URI}" "^/privacy-policy.html"
+RewriteRule ".*" "https://scamreporthub.com/privacy-policy.php" [L,R=301]
+RewriteCond "%{HTTP_HOST}" "^scamreporthub-com[.]"
+RewriteCond "%{REQUEST_URI}" "^/privacy-policy.html"
+RewriteRule ".*" "https://scamreporthub.com/privacy-policy.php" [L,R=301]
+#-WebsiteRedirect
+
+#+PHPVersion
+#=php83
+AddHandler x-httpd-php83 .php
+#-PHPVersion
+

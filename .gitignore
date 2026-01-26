@@ -1,0 +1,71 @@
+# Sensitive Configuration Files
+config.php
+manifest.json
+public_html/community/wp-config.php
+
+# Database Backups
+database_backups/
+*.sql
+
+# WordPress Installation (handled separately)
+public_html/community/
+
+# User-Generated Content
+public_html/uploads/
+
+# Server-Specific Files
+.bash_profile
+
+# Log Files
+*.log
+logs/
+error_log
+access_log
+
+# Cache Files
+*.cache
+cache/
+tmp/
+temp/
+
+# OS-Specific Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# IDE and Editor Files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# PHP Specific
+vendor/
+composer.lock
+.phpunit.result.cache
+
+# Environment Files
+.env
+.env.local
+.env.*.local
+
+# Backup Files
+*.bak
+*.backup
+*.old
+*~
+
+# Temporary Files
+*.tmp
+*.temp

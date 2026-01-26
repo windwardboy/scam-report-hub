@@ -1,0 +1,5 @@
+# Enable mod_rewrite
+RewriteEngine On
+
+# Custom rewrite for Scam Report detail pages
+RewriteRule ^scam/([^/]+)/?$ scam.php?slug=$1 [L,QSA]
