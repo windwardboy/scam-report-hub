@@ -34,7 +34,7 @@ if (empty($token)) {
                 $page_message = "This report submission was reviewed and rejected by moderators. It can no longer be edited or viewed publicly.";
                 $page_message_type = 'warning'; 
                 $allow_editing = false; 
-            } elseif ($scam['status'] === 'approved' || $scam['status'] === 'pending') {
+            } elseif ($scam['status'] === 'draft' || $scam['status'] === 'approved' || $scam['status'] === 'pending') {
                 $allow_editing = true; 
             } else {
                  $token_error = "The report associated with this link has an unexpected status.";
@@ -102,6 +102,9 @@ function get_value($field_name, $form_data, $scam_data) {
     <?php // Conditionally display the form 
     if ($allow_editing): ?>
     
+    <?php if (($scam['status'] ?? '') === 'draft'): ?>
+        <div class="alert alert-secondary" role="alert">This report is saved as a draft and is hidden from the public site. You can still update it here. A moderator needs to approve it before it is published again.</div>
+    <?php endif; ?>
     <p>Make corrections to your submitted report below. Fields marked with * are required.</p>
 
     <form action="update_report.php" method="post" enctype="multipart/form-data" novalidate>

@@ -31,7 +31,7 @@ if (empty($_POST['csrf_token']) || empty($_SESSION['csrf_token']) || !hash_equal
 $action = $_POST['action'] ?? null;
 
 // --- Define Allowed Actions ---
-$report_actions = ['approve', 'reject', 'delete'];
+$report_actions = ['approve', 'reject', 'delete', 'draft', 'pending'];
 $comment_actions = ['approve_comment', 'reject_comment', 'delete_comment'];
 $flag_actions = ['review_flag', 'delete_flag']; // **** ADDED Flag Actions ****
 $allowed_actions = array_merge($report_actions, $comment_actions, $flag_actions);
@@ -50,9 +50,31 @@ if (in_array($action, $report_actions)) {
     $scam_id = filter_input(INPUT_POST, 'scam_id', FILTER_VALIDATE_INT); 
     if (!$scam_id || $scam_id <= 0) { $_SESSION['admin_feedback'] = ['type' => 'danger', 'message' => 'Invalid Report ID for report action.']; header('Location: ' . $redirect_page); exit(); }
 
-    if ($action === 'approve' || $action === 'reject') {
-        $new_status = ($action === 'approve') ? 'approved' : 'rejected';
-        try { $sql = "UPDATE scams SET status = ?, updated_at = NOW() WHERE id = ?"; $stmt = $pdo->prepare($sql); if ($stmt->execute([$new_status, $scam_id])) { $_SESSION['admin_feedback'] = ['type' => 'success', 'message' => "Report #{$scam_id} marked as {$new_status}."]; } else { $_SESSION['admin_feedback'] = ['type' => 'danger', 'message' => "Failed to update status for report #{$scam_id}."]; } } catch (PDOException $e) { error_log("DB error update report status ID {$scam_id}: ".$e->getMessage()); $_SESSION['admin_feedback'] = ['type' => 'danger', 'message' => "DB error update status report #{$scam_id}."]; }
+    if ($action === 'approve' || $action === 'reject' || $action === 'draft' || $action === 'pending') {
+        $status_for_action = [
+            'approve' => 'approved',
+            'reject' => 'rejected',
+            'draft' => 'draft',
+            'pending' => 'pending',
+        ];
+        $new_status = $status_for_action[$action];
+        if ($action === 'draft') {
+            $redirect_page .= '#drafts-pane';
+        }
+        try {
+            $sql = "UPDATE scams SET status = ?, updated_at = NOW() WHERE id = ?";
+            $stmt = $pdo->prepare($sql);
+            if (!$stmt->execute([$new_status, $scam_id])) {
+                $_SESSION['admin_feedback'] = ['type' => 'danger', 'message' => "Failed to update status for report #{$scam_id}."];
+            } elseif ($stmt->rowCount() > 0) {
+                $_SESSION['admin_feedback'] = ['type' => 'success', 'message' => "Report #{$scam_id} marked as {$new_status}."];
+            } else {
+                $_SESSION['admin_feedback'] = ['type' => 'warning', 'message' => "Report #{$scam_id} was already {$new_status}."];
+            }
+        } catch (PDOException $e) {
+            error_log("DB error update report status ID {$scam_id}: ".$e->getMessage());
+            $_SESSION['admin_feedback'] = ['type' => 'danger', 'message' => "DB error update status report #{$scam_id}."];
+        }
     } elseif ($action === 'delete') {
         $evidence_path_relative = null; $delete_success = false;
         try { $pdo->beginTransaction(); $stmt_path = $pdo->prepare("SELECT evidence_path FROM scams WHERE id = ?"); $stmt_path->execute([$scam_id]); $evidence_path_relative = $stmt_path->fetchColumn(); $stmt_delete = $pdo->prepare("DELETE FROM scams WHERE id = ?"); $delete_success = $stmt_delete->execute([$scam_id]); if ($delete_success && $stmt_delete->rowCount() > 0) { $pdo->commit(); $_SESSION['admin_feedback'] = ['type' => 'success', 'message' => "Report #{$scam_id} permanently deleted."]; if ($evidence_path_relative) { $evidence_path_absolute = __DIR__ . '/' . ltrim($evidence_path_relative, '/'); if (file_exists($evidence_path_absolute) && is_file($evidence_path_absolute)) { if (!@unlink($evidence_path_absolute)) { error_log("WARNING: Failed delete evidence file: ".$evidence_path_absolute." for report ID: ".$scam_id); $_SESSION['admin_feedback']['message'] .= " (Warn: Could not delete file)"; } } else { error_log("Notice: Evidence file not found: ".$evidence_path_absolute); } } } else { $pdo->rollBack(); error_log("DB error deleting report ID {$scam_id}."); $_SESSION['admin_feedback'] = ['type' => 'danger', 'message' => "Failed to delete report #{$scam_id}."]; } } catch (PDOException $e) { if ($pdo->inTransaction()) { $pdo->rollBack(); } error_log("DB exception delete report ID {$scam_id}: ".$e->getMessage()); $_SESSION['admin_feedback'] = ['type' => 'danger', 'message' => "DB exception delete report #{$scam_id}."]; }

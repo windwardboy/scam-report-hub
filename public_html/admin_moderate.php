@@ -19,6 +19,7 @@ $csrf_token = $_SESSION['csrf_token'];
 include 'includes/db.php'; 
 
 $pending_reports = []; 
+$draft_reports = [];
 $pending_comments = []; 
 $pending_flags = []; // **** ADDED: Array for pending flags ****
 $db_error = null;    
@@ -32,6 +33,16 @@ try {
 } catch (PDOException $e) {
     error_log("Database error fetching pending reports: " . $e->getMessage());
     $db_error = "A database error occurred while retrieving reports.";
+}
+
+try {
+    $sql_drafts = "SELECT id, created_at, updated_at, scam_type, title, contact_method_details, description, status FROM scams WHERE status = :status ORDER BY updated_at DESC";
+    $stmt_drafts = $pdo->prepare($sql_drafts);
+    $stmt_drafts->execute(['status' => 'draft']);
+    $draft_reports = $stmt_drafts->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    error_log("Database error fetching draft reports: " . $e->getMessage());
+    $db_error = ($db_error ? $db_error."<br>" : "") . "Could not load draft reports.";
 }
 
 // --- Fetch Pending Comments ---
@@ -121,6 +132,11 @@ function format_flag_reason($reason) {
                 Pending Flags <span class="badge bg-warning text-dark"><?php echo count($pending_flags); ?></span>
             </button>
         </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="drafts-tab" data-bs-toggle="tab" data-bs-target="#drafts-pane" type="button" role="tab" aria-controls="drafts-pane" aria-selected="false">
+                Drafts <span class="badge bg-secondary"><?php echo count($draft_reports); ?></span>
+            </button>
+        </li>
          </ul>
     <div class="tab-content" id="moderationTabsContent">
 
@@ -129,7 +145,7 @@ function format_flag_reason($reason) {
             <?php if (!$db_error && empty($pending_reports)): ?> <div class="alert alert-info" role="alert">No pending reports found.</div>
             <?php elseif (!empty($pending_reports)): ?>
                 <div class="table-responsive"> <table class="table table-striped table-hover table-bordered"> <thead class="table-light"> <tr><th>ID</th><th>Submitted</th><th>Type</th><th class="title-column">Title</th><th>Contact Details</th><th class="description-column">Description</th><th>Status</th><th>Actions</th></tr></thead> <tbody>
-                <?php foreach ($pending_reports as $report): ?> <tr> <td><?php echo htmlspecialchars($report['id']); ?></td> <td><?php echo htmlspecialchars(date('Y-m-d H:i', strtotime($report['created_at']))); ?></td> <td><?php echo ucwords(str_replace('_', ' ', htmlspecialchars($report['scam_type']))); ?></td> <td class="title-column"><?php echo !empty($report['title']) ? htmlspecialchars($report['title']) : '<span class="text-muted fst-italic">(No Title)</span>'; ?></td> <td><?php echo htmlspecialchars($report['contact_method_details']); ?></td> <td class="description-column"><?php echo truncate_text($report['description'], 80); ?></td> <td><span class="badge bg-warning text-dark"><?php echo htmlspecialchars(ucfirst($report['status'])); ?></span></td> <td class="text-nowrap"> <form action="admin_action.php" method="POST" style="display: inline-block;"> <input type="hidden" name="scam_id" value="<?php echo htmlspecialchars($report['id']); ?>"> <input type="hidden" name="action" value="approve"> <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>"> <button type="submit" class="btn btn-sm btn-success" title="Approve"><i class="bi bi-check-lg"></i></button> </form> <form action="admin_action.php" method="POST" style="display: inline-block; margin-left: 2px;"> <input type="hidden" name="scam_id" value="<?php echo htmlspecialchars($report['id']); ?>"> <input type="hidden" name="action" value="reject"> <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>"> <button type="submit" class="btn btn-sm btn-danger" title="Reject"><i class="bi bi-x-lg"></i></button> </form> <a href="admin_edit_report.php?id=<?php echo htmlspecialchars($report['id']); ?>" class="btn btn-sm btn-primary" style="margin-left: 2px;" title="Edit Report"><i class="bi bi-pencil-square"></i></a> <a href="admin_view_report.php?id=<?php echo htmlspecialchars($report['id']); ?>" class="btn btn-sm btn-info" style="margin-left: 2px;" title="View Details"><i class="bi bi-eye-fill"></i></a> </td> </tr> <?php endforeach; ?> </tbody> </table> </div>
+                <?php foreach ($pending_reports as $report): ?> <tr> <td><?php echo htmlspecialchars($report['id']); ?></td> <td><?php echo htmlspecialchars(date('Y-m-d H:i', strtotime($report['created_at']))); ?></td> <td><?php echo ucwords(str_replace('_', ' ', htmlspecialchars($report['scam_type']))); ?></td> <td class="title-column"><?php echo !empty($report['title']) ? htmlspecialchars($report['title']) : '<span class="text-muted fst-italic">(No Title)</span>'; ?></td> <td><?php echo htmlspecialchars($report['contact_method_details']); ?></td> <td class="description-column"><?php echo truncate_text($report['description'], 80); ?></td> <td><span class="badge bg-warning text-dark"><?php echo htmlspecialchars(ucfirst($report['status'])); ?></span></td> <td class="text-nowrap"> <form action="admin_action.php" method="POST" style="display: inline-block;"> <input type="hidden" name="scam_id" value="<?php echo htmlspecialchars($report['id']); ?>"> <input type="hidden" name="action" value="approve"> <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>"> <button type="submit" class="btn btn-sm btn-success" title="Approve"><i class="bi bi-check-lg"></i></button> </form> <form action="admin_action.php" method="POST" style="display: inline-block; margin-left: 2px;"> <input type="hidden" name="scam_id" value="<?php echo htmlspecialchars($report['id']); ?>"> <input type="hidden" name="action" value="reject"> <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>"> <button type="submit" class="btn btn-sm btn-danger" title="Reject"><i class="bi bi-x-lg"></i></button> </form> <form action="admin_action.php" method="POST" style="display: inline-block; margin-left: 2px;" onsubmit="return confirm('Send this report to draft? It will be hidden from the public site until you approve it again.');"> <input type="hidden" name="scam_id" value="<?php echo htmlspecialchars($report['id']); ?>"> <input type="hidden" name="action" value="draft"> <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>"> <button type="submit" class="btn btn-sm btn-outline-secondary" title="Send to draft"><i class="bi bi-file-earmark"></i></button> </form> <a href="admin_edit_report.php?id=<?php echo htmlspecialchars($report['id']); ?>" class="btn btn-sm btn-primary" style="margin-left: 2px;" title="Edit Report"><i class="bi bi-pencil-square"></i></a> <a href="admin_view_report.php?id=<?php echo htmlspecialchars($report['id']); ?>" class="btn btn-sm btn-info" style="margin-left: 2px;" title="View Details"><i class="bi bi-eye-fill"></i></a> </td> </tr> <?php endforeach; ?> </tbody> </table> </div>
             <?php endif; ?>
         </div> <div class="tab-pane fade" id="comments-pane" role="tabpanel" aria-labelledby="comments-tab" tabindex="0">
              <h2 class="h4 mb-3">Pending Comments</h2>
@@ -192,9 +208,74 @@ function format_flag_reason($reason) {
                      </table>
                  </div>
              <?php endif; ?>
-        </div> </div> </div><?php include 'includes/footer.php'; ?>
+        </div>
+
+        <div class="tab-pane fade" id="drafts-pane" role="tabpanel" aria-labelledby="drafts-tab" tabindex="0">
+            <h2 class="h4 mb-3">Draft Reports</h2>
+            <p class="text-muted">Drafts are hidden from the public site. Approve a draft to publish it, or return it to the pending queue.</p>
+            <?php if (!$db_error && empty($draft_reports)): ?>
+                <div class="alert alert-info" role="alert">No draft reports found.</div>
+            <?php elseif (!empty($draft_reports)): ?>
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th>ID</th>
+                                <th>Updated</th>
+                                <th>Type</th>
+                                <th class="title-column">Title</th>
+                                <th>Contact Details</th>
+                                <th class="description-column">Description</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($draft_reports as $report): ?>
+                            <tr>
+                                <td><?php echo htmlspecialchars($report['id']); ?></td>
+                                <td><?php echo htmlspecialchars(date('Y-m-d H:i', strtotime($report['updated_at']))); ?></td>
+                                <td><?php echo ucwords(str_replace('_', ' ', htmlspecialchars($report['scam_type']))); ?></td>
+                                <td class="title-column"><?php echo !empty($report['title']) ? htmlspecialchars($report['title']) : '<span class="text-muted fst-italic">(No Title)</span>'; ?></td>
+                                <td><?php echo htmlspecialchars($report['contact_method_details']); ?></td>
+                                <td class="description-column"><?php echo truncate_text($report['description'], 80); ?></td>
+                                <td><span class="badge bg-secondary">Draft</span></td>
+                                <td class="text-nowrap">
+                                    <form action="admin_action.php" method="POST" style="display: inline-block;">
+                                        <input type="hidden" name="scam_id" value="<?php echo htmlspecialchars($report['id']); ?>">
+                                        <input type="hidden" name="action" value="approve">
+                                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                                        <button type="submit" class="btn btn-sm btn-success" title="Approve"><i class="bi bi-check-lg"></i></button>
+                                    </form>
+                                    <form action="admin_action.php" method="POST" style="display: inline-block; margin-left: 2px;">
+                                        <input type="hidden" name="scam_id" value="<?php echo htmlspecialchars($report['id']); ?>">
+                                        <input type="hidden" name="action" value="pending">
+                                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                                        <button type="submit" class="btn btn-sm btn-warning text-dark" title="Return to pending"><i class="bi bi-arrow-counterclockwise"></i></button>
+                                    </form>
+                                    <a href="admin_edit_report.php?id=<?php echo htmlspecialchars($report['id']); ?>" class="btn btn-sm btn-primary" style="margin-left: 2px;" title="Edit Report"><i class="bi bi-pencil-square"></i></a>
+                                    <a href="admin_view_report.php?id=<?php echo htmlspecialchars($report['id']); ?>" class="btn btn-sm btn-info" style="margin-left: 2px;" title="View Details"><i class="bi bi-eye-fill"></i></a>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
+        </div>
+        </div> </div><?php include 'includes/footer.php'; ?>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var hash = window.location.hash;
+    if (!hash) return;
+    var trigger = document.querySelector('[data-bs-target="' + hash + '"]');
+    if (trigger && window.bootstrap) {
+        bootstrap.Tab.getOrCreateInstance(trigger).show();
+    }
+});
+</script>
 
 </body>
 </html>

@@ -125,7 +125,7 @@
                     $offset = ($page - 1) * $results_per_page; // Offset for the query
 
                     // Prepare the SQL query to search for scams
-                    $query = "SELECT * FROM scams WHERE 
+                    $query = "SELECT * FROM scams WHERE status = 'approved' AND
                               (scam_type LIKE :search OR 
                               description LIKE :search OR 
                               contact_method_type LIKE :search OR 
@@ -164,7 +164,7 @@
         <!-- Pagination links -->
         <?php
         // Count total number of scams
-        $count_query = "SELECT COUNT(*) FROM scams WHERE 
+        $count_query = "SELECT COUNT(*) FROM scams WHERE status = 'approved' AND
                         (scam_type LIKE :search OR 
                         description LIKE :search OR 
                         contact_method_type LIKE :search OR 

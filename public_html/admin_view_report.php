@@ -53,6 +53,7 @@ if ($scam) {
     if ($scam['status'] === 'pending') $status_badge_class = 'bg-warning text-dark';
     if ($scam['status'] === 'approved') $status_badge_class = 'bg-success';
     if ($scam['status'] === 'rejected') $status_badge_class = 'bg-danger';
+    if ($scam['status'] === 'draft') $status_badge_class = 'bg-secondary';
 } else {
     $page_title = "Admin View - Error";
     $display_title = "Error"; 
@@ -156,15 +157,22 @@ pre { background-color: #f8f9fa; padding: 1em; border-radius: 0.25rem; white-spa
                         <p><span class="detail-label">Edit Token:</span> <small><?php echo htmlspecialchars($scam['edit_token']); ?></small></p> 
                    </div> 
               </div>
-              <?php if ($scam['status'] === 'pending'): ?> 
               <div class="card mb-4"> 
                    <div class="card-header">Moderation Actions</div> 
-                   <div class="card-body text-center"> 
-                       <form action="admin_action.php" method="POST" class="d-inline-block me-2"> <input type="hidden" name="scam_id" value="<?php echo htmlspecialchars($scam['id']); ?>"> <input type="hidden" name="action" value="approve"> <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>"> <button type="submit" class="btn btn-success">Approve Report</button> </form> 
-                       <form action="admin_action.php" method="POST" class="d-inline-block"> <input type="hidden" name="scam_id" value="<?php echo htmlspecialchars($scam['id']); ?>"> <input type="hidden" name="action" value="reject"> <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>"> <button type="submit" class="btn btn-danger">Reject Report</button> </form> 
+                   <div class="card-body text-center d-grid gap-2"> 
+                       <?php if ($scam['status'] !== 'approved'): ?>
+                       <form action="admin_action.php" method="POST"> <input type="hidden" name="scam_id" value="<?php echo htmlspecialchars($scam['id']); ?>"> <input type="hidden" name="action" value="approve"> <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>"> <button type="submit" class="btn btn-success w-100">Approve Report</button> </form>
+                       <?php endif; ?>
+                       <?php if ($scam['status'] === 'pending'): ?>
+                       <form action="admin_action.php" method="POST"> <input type="hidden" name="scam_id" value="<?php echo htmlspecialchars($scam['id']); ?>"> <input type="hidden" name="action" value="reject"> <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>"> <button type="submit" class="btn btn-danger w-100">Reject Report</button> </form>
+                       <?php endif; ?>
+                       <?php if ($scam['status'] !== 'draft'): ?>
+                       <form action="admin_action.php" method="POST" onsubmit="return confirm('Send this report to draft? It will be hidden from the public site until you approve it again.');"> <input type="hidden" name="scam_id" value="<?php echo htmlspecialchars($scam['id']); ?>"> <input type="hidden" name="action" value="draft"> <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>"> <button type="submit" class="btn btn-outline-secondary w-100"><i class="bi bi-file-earmark"></i> Send to Draft</button> </form>
+                       <?php else: ?>
+                       <form action="admin_action.php" method="POST"> <input type="hidden" name="scam_id" value="<?php echo htmlspecialchars($scam['id']); ?>"> <input type="hidden" name="action" value="pending"> <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>"> <button type="submit" class="btn btn-warning w-100">Return to Pending</button> </form>
+                       <?php endif; ?>
                    </div> 
-              </div> 
-              <?php endif; ?>
+              </div>
               <div class="card border-danger"> 
                    <div class="card-header bg-danger text-white">Delete Report</div> 
                    <div class="card-body text-center"> 

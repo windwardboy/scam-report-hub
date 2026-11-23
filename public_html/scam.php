@@ -62,10 +62,12 @@ if (empty($slug)) {
                 }
 
             } elseif ($scam['status'] === 'pending') {
-                $status_message = "This report (\"" . htmlspecialchars($scam['title'] ?: 'Untitled') . "\") is currently awaiting moderator review..."; $status_message_type = 'info'; http_response_code(200); $page_title = "Report Pending Review | Scam Report Hub"; $display_title = htmlspecialchars($scam['title'] ?: 'Report Pending'); 
+                $status_message = "This report (\"" . htmlspecialchars($scam['title'] ?: 'Untitled') . "\") is currently awaiting moderator review..."; $status_message_type = 'info'; $status_heading = 'Report Pending Review'; http_response_code(200); $page_title = "Report Pending Review | Scam Report Hub"; $display_title = htmlspecialchars($scam['title'] ?: 'Report Pending');
             } elseif ($scam['status'] === 'rejected') {
-                $status_message = "This report (\"" . htmlspecialchars($scam['title'] ?: 'Untitled') . "\") was reviewed and rejected by moderators..."; $status_message_type = 'warning'; http_response_code(200); $page_title = "Report Rejected | Scam Report Hub"; $display_title = htmlspecialchars($scam['title'] ?: 'Report Rejected'); 
-            } else { 
+                $status_message = "This report (\"" . htmlspecialchars($scam['title'] ?: 'Untitled') . "\") was reviewed and rejected by moderators..."; $status_message_type = 'warning'; $status_heading = 'Report Rejected'; http_response_code(200); $page_title = "Report Rejected | Scam Report Hub"; $display_title = htmlspecialchars($scam['title'] ?: 'Report Rejected');
+            } elseif ($scam['status'] === 'draft') {
+                $status_message = "This report is not currently published."; $status_message_type = 'secondary'; $status_heading = 'Report Not Published'; http_response_code(404); $page_title = "Report Unavailable | Scam Report Hub"; $display_title = "Report Unavailable";
+            } else {
                 $error_message = "This report has an unknown status..."; http_response_code(500); $page_title = "Report Status Error | Scam Report Hub"; $display_title = "Error"; 
             }
         }
@@ -119,7 +121,7 @@ if (empty($slug)) {
     <?php if ($error_message): ?>
         <h1 class="mb-4"><?php echo $display_title ?: 'Error'; ?></h1> <div class="alert alert-danger" role="alert"><?php echo htmlspecialchars($error_message); ?></div> <a href="/browse.php" class="btn btn-primary">Browse Scams</a>
     <?php elseif ($status_message): ?>
-         <h1 class="mb-4"><?php echo $display_title; ?></h1> <div class="alert alert-<?php echo $status_message_type; ?>" role="alert"> <h4 class="alert-heading"><?php echo ($scam['status'] === 'pending') ? 'Report Pending Review' : 'Report Rejected'; ?></h4> <p><?php echo $status_message; ?></p> </div> <a href="/browse.php" class="btn btn-primary mt-3">Browse Other Scams</a>
+         <h1 class="mb-4"><?php echo $display_title; ?></h1> <div class="alert alert-<?php echo $status_message_type; ?>" role="alert"> <h4 class="alert-heading"><?php echo htmlspecialchars($status_heading ?? 'Report Unavailable'); ?></h4> <p><?php echo $status_message; ?></p> </div> <a href="/browse.php" class="btn btn-primary mt-3">Browse Other Scams</a>
     <?php elseif ($scam && isset($show_full_report) && $show_full_report === true): ?>
     
         <?php // Success messages 
