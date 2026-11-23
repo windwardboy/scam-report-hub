@@ -20,6 +20,9 @@ include 'includes/db.php';
 
 $pending_reports = []; 
 $draft_reports = [];
+$published_reports = [];
+$published_total = 0;
+$published_query = trim($_GET['q'] ?? '');
 $pending_comments = []; 
 $pending_flags = []; // **** ADDED: Array for pending flags ****
 $db_error = null;    
@@ -43,6 +46,31 @@ try {
 } catch (PDOException $e) {
     error_log("Database error fetching draft reports: " . $e->getMessage());
     $db_error = ($db_error ? $db_error."<br>" : "") . "Could not load draft reports.";
+}
+
+try {
+    $published_total = (int)$pdo->query("SELECT COUNT(*) FROM scams WHERE status = 'approved'")->fetchColumn();
+    $sql_published = "SELECT id, created_at, scam_type, title, contact_method_details, description, status FROM scams WHERE status = 'approved'";
+    $published_params = [];
+    if ($published_query !== '') {
+        $like = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $published_query) . '%';
+        $sql_published .= " AND (title LIKE :q_title ESCAPE '\\\\' OR contact_method_details LIKE :q_contact ESCAPE '\\\\' OR description LIKE :q_description ESCAPE '\\\\'";
+        $published_params['q_title'] = $like;
+        $published_params['q_contact'] = $like;
+        $published_params['q_description'] = $like;
+        if (ctype_digit($published_query)) {
+            $sql_published .= " OR id = :id";
+            $published_params['id'] = (int)$published_query;
+        }
+        $sql_published .= ")";
+    }
+    $sql_published .= " ORDER BY created_at DESC LIMIT 100";
+    $stmt_published = $pdo->prepare($sql_published);
+    $stmt_published->execute($published_params);
+    $published_reports = $stmt_published->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    error_log("Database error fetching published reports: " . $e->getMessage());
+    $db_error = ($db_error ? $db_error."<br>" : "") . "Could not load published reports.";
 }
 
 // --- Fetch Pending Comments ---
@@ -123,6 +151,11 @@ function format_flag_reason($reason) {
             </button>
         </li>
         <li class="nav-item" role="presentation">
+            <button class="nav-link" id="published-tab" data-bs-toggle="tab" data-bs-target="#published-pane" type="button" role="tab" aria-controls="published-pane" aria-selected="false">
+                Published <span class="badge bg-success"><?php echo (int)$published_total; ?></span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
             <button class="nav-link" id="comments-tab" data-bs-toggle="tab" data-bs-target="#comments-pane" type="button" role="tab" aria-controls="comments-pane" aria-selected="false">
                 Pending Comments <span class="badge bg-secondary"><?php echo count($pending_comments); ?></span>
             </button>
@@ -147,7 +180,65 @@ function format_flag_reason($reason) {
                 <div class="table-responsive"> <table class="table table-striped table-hover table-bordered"> <thead class="table-light"> <tr><th>ID</th><th>Submitted</th><th>Type</th><th class="title-column">Title</th><th>Contact Details</th><th class="description-column">Description</th><th>Status</th><th>Actions</th></tr></thead> <tbody>
                 <?php foreach ($pending_reports as $report): ?> <tr> <td><?php echo htmlspecialchars($report['id']); ?></td> <td><?php echo htmlspecialchars(date('Y-m-d H:i', strtotime($report['created_at']))); ?></td> <td><?php echo ucwords(str_replace('_', ' ', htmlspecialchars($report['scam_type']))); ?></td> <td class="title-column"><?php echo !empty($report['title']) ? htmlspecialchars($report['title']) : '<span class="text-muted fst-italic">(No Title)</span>'; ?></td> <td><?php echo htmlspecialchars($report['contact_method_details']); ?></td> <td class="description-column"><?php echo truncate_text($report['description'], 80); ?></td> <td><span class="badge bg-warning text-dark"><?php echo htmlspecialchars(ucfirst($report['status'])); ?></span></td> <td class="text-nowrap"> <form action="admin_action.php" method="POST" style="display: inline-block;"> <input type="hidden" name="scam_id" value="<?php echo htmlspecialchars($report['id']); ?>"> <input type="hidden" name="action" value="approve"> <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>"> <button type="submit" class="btn btn-sm btn-success" title="Approve"><i class="bi bi-check-lg"></i></button> </form> <form action="admin_action.php" method="POST" style="display: inline-block; margin-left: 2px;"> <input type="hidden" name="scam_id" value="<?php echo htmlspecialchars($report['id']); ?>"> <input type="hidden" name="action" value="reject"> <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>"> <button type="submit" class="btn btn-sm btn-danger" title="Reject"><i class="bi bi-x-lg"></i></button> </form> <form action="admin_action.php" method="POST" style="display: inline-block; margin-left: 2px;" onsubmit="return confirm('Send this report to draft? It will be hidden from the public site until you approve it again.');"> <input type="hidden" name="scam_id" value="<?php echo htmlspecialchars($report['id']); ?>"> <input type="hidden" name="action" value="draft"> <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>"> <button type="submit" class="btn btn-sm btn-outline-secondary" title="Send to draft"><i class="bi bi-file-earmark"></i></button> </form> <a href="admin_edit_report.php?id=<?php echo htmlspecialchars($report['id']); ?>" class="btn btn-sm btn-primary" style="margin-left: 2px;" title="Edit Report"><i class="bi bi-pencil-square"></i></a> <a href="admin_view_report.php?id=<?php echo htmlspecialchars($report['id']); ?>" class="btn btn-sm btn-info" style="margin-left: 2px;" title="View Details"><i class="bi bi-eye-fill"></i></a> </td> </tr> <?php endforeach; ?> </tbody> </table> </div>
             <?php endif; ?>
-        </div> <div class="tab-pane fade" id="comments-pane" role="tabpanel" aria-labelledby="comments-tab" tabindex="0">
+        </div>
+
+        <div class="tab-pane fade" id="published-pane" role="tabpanel" aria-labelledby="published-tab" tabindex="0">
+            <h2 class="h4 mb-3">Published Reports</h2>
+            <p class="text-muted">These reports are live on the site. Send one to draft to hide it without rejecting it.</p>
+            <form class="row g-2 mb-3" method="get" action="admin_moderate.php#published-pane">
+                <div class="col-sm-8 col-md-6">
+                    <label class="visually-hidden" for="published-search">Search published reports</label>
+                    <input class="form-control" id="published-search" type="search" name="q" value="<?php echo htmlspecialchars($published_query); ?>" placeholder="Search by title, contact, description, or ID">
+                </div>
+                <div class="col-auto">
+                    <button class="btn btn-primary" type="submit">Search</button>
+                </div>
+            </form>
+            <?php if (!$db_error && empty($published_reports)): ?>
+                <div class="alert alert-info" role="alert">No published reports found.</div>
+            <?php elseif (!empty($published_reports)): ?>
+                <?php if (count($published_reports) === 100): ?>
+                    <p class="small text-muted">Showing the 100 most recent matches. Search to narrow the list.</p>
+                <?php endif; ?>
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th>ID</th>
+                                <th>Submitted</th>
+                                <th>Type</th>
+                                <th class="title-column">Title</th>
+                                <th>Contact Details</th>
+                                <th class="description-column">Description</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($published_reports as $report): ?>
+                            <tr>
+                                <td><?php echo htmlspecialchars($report['id']); ?></td>
+                                <td><?php echo htmlspecialchars(date('Y-m-d H:i', strtotime($report['created_at']))); ?></td>
+                                <td><?php echo ucwords(str_replace('_', ' ', htmlspecialchars($report['scam_type']))); ?></td>
+                                <td class="title-column"><?php echo !empty($report['title']) ? htmlspecialchars($report['title']) : '<span class="text-muted fst-italic">(No Title)</span>'; ?></td>
+                                <td><?php echo htmlspecialchars($report['contact_method_details']); ?></td>
+                                <td class="description-column"><?php echo truncate_text($report['description'], 80); ?></td>
+                                <td class="text-nowrap">
+                                    <form action="admin_action.php" method="POST" class="d-inline-block" onsubmit="return confirm('Send this published report to draft? It will be hidden from the public site until you approve it again.');">
+                                        <input type="hidden" name="scam_id" value="<?php echo htmlspecialchars($report['id']); ?>">
+                                        <input type="hidden" name="action" value="draft">
+                                        <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($csrf_token); ?>">
+                                        <button type="submit" class="btn btn-sm btn-outline-secondary">Send to draft</button>
+                                    </form>
+                                    <a href="admin_view_report.php?id=<?php echo htmlspecialchars($report['id']); ?>" class="btn btn-sm btn-info" style="margin-left: 2px;" title="View Details"><i class="bi bi-eye-fill"></i></a>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
+        </div>
+        <div class="tab-pane fade" id="comments-pane" role="tabpanel" aria-labelledby="comments-tab" tabindex="0">
              <h2 class="h4 mb-3">Pending Comments</h2>
              <?php if (!$db_error && empty($pending_comments)): ?> <div class="alert alert-info" role="alert">No pending comments found.</div>
              <?php elseif (!empty($pending_comments)): ?>
